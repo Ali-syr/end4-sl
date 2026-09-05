@@ -42,24 +42,6 @@ ContentPage {
         spacing: 20
 
         ContentSection {
-            icon: "neurology"
-            shape: MaterialShape.Shape.Ghostish
-            title: Translation.tr("AI")
-
-            MaterialTextArea {
-                Layout.fillWidth: true
-                placeholderText: Translation.tr("System prompt")
-                text: Config.options.ai.systemPrompt
-                wrapMode: TextEdit.Wrap
-                onTextChanged: {
-                    Qt.callLater(() => {
-                        Config.options.ai.systemPrompt = text;
-                    });
-                }
-            }
-        }
-
-        ContentSection {
             icon: "cell_tower"
             shape: MaterialShape.Shape.PixelCircle
             title: Translation.tr("Networking")

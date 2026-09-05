@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+
 import qs.modules.common
 import qs.modules.common.utils
 import qs.modules.common.functions
@@ -13,12 +14,16 @@ import Quickshell.Wayland
 
 PanelWindow {
     id: root
+
     visible: false
     color: "transparent"
+
     WlrLayershell.namespace: "quickshell:regionSelector"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+
     exclusionMode: ExclusionMode.Ignore
+
     anchors {
         left: true
         right: true
@@ -27,13 +32,14 @@ PanelWindow {
     }
 
     // Modes
-    // TODO: Ask: sidebar AI
-    enum SnipAction { Copy, Edit, Search, CharRecognition, Record, RecordWithSound } 
+    enum SnipAction { Copy, Edit, Search, CharRecognition, Record, RecordWithSound }
     enum SelectionMode { RectCorners, Circle }
     enum Phase { Select, Post }
+
     property var action: RegionSelection.SnipAction.Copy
     property var selectionMode: RegionSelection.SelectionMode.RectCorners
     property var phase: RegionSelection.Phase.Select
+
     signal dismiss()
 
     // Styles
@@ -54,7 +60,6 @@ PanelWindow {
 
     // Vars for indicators
     readonly property var windows: [...HyprlandData.windowList].sort((a, b) => {
-        // Sort floating=true windows before others
         if (a.floating === b.floating) return 0;
         return a.floating ? -1 : 1;
     })
@@ -80,6 +85,7 @@ PanelWindow {
     property list<point> points: []
     property var mouseButton: null
     property var imageRegions: []
+
     readonly property list<var> windowRegions: RegionFunctions.filterWindowRegionsByLayers(
         root.windows.filter(w => w.workspace.id === root.activeWorkspaceId),
         root.layerRegions
@@ -91,19 +97,22 @@ PanelWindow {
             title: window.title,
         }
     })
+
     readonly property list<var> layerRegions: {
         const layersOfThisMonitor = root.layers[root.monitor?.name]
         const topLayers = layersOfThisMonitor?.levels["2"]
         if (!topLayers) return [];
+
         const nonBarTopLayers = topLayers
             .filter(layer => !(layer.namespace.includes(":bar") || layer.namespace.includes(":verticalBar") || layer.namespace.includes(":dock")))
             .map(layer => {
-            return {
-                at: [layer.x, layer.y],
-                size: [layer.w, layer.h],
-                namespace: layer.namespace,
-            }
-        })
+                return {
+                    at: [layer.x, layer.y],
+                    size: [layer.w, layer.h],
+                    namespace: layer.namespace,
+                }
+            })
+
         const offsetAdjustedLayers = nonBarTopLayers.map(layer => {
             return {
                 at: [layer.at[0] - root.monitorOffsetX, layer.at[1] - root.monitorOffsetY],
@@ -111,6 +120,7 @@ PanelWindow {
                 namespace: layer.namespace,
             }
         });
+
         return offsetAdjustedLayers;
     }
 
@@ -125,11 +135,13 @@ PanelWindow {
     property real targetedRegionY: -1
     property real targetedRegionWidth: 0
     property real targetedRegionHeight: 0
+
     function targetedRegionValid() {
         return (root.targetedRegionX >= 0 && root.targetedRegionY >= 0)
     }
+
     function setRegionToTargeted() {
-        const padding = Config.options.regionSelector.targetRegions.selectionPadding; // Make borders not cut off n stuff
+        const padding = Config.options.regionSelector.targetRegions.selectionPadding;
         root.regionX = root.targetedRegionX - padding;
         root.regionY = root.targetedRegionY - padding;
         root.regionWidth = root.targetedRegionWidth + padding * 2;
@@ -137,7 +149,6 @@ PanelWindow {
     }
 
     function updateTargetedRegion(x, y) {
-        // Image regions
         const clickedRegion = root.imageRegions.find(region => {
             return region.at[0] <= x && x <= region.at[0] + region.size[0] && region.at[1] <= y && y <= region.at[1] + region.size[1];
         });
@@ -149,7 +160,6 @@ PanelWindow {
             return;
         }
 
-        // Layer regions
         const clickedLayer = root.layerRegions.find(region => {
             return region.at[0] <= x && x <= region.at[0] + region.size[0] && region.at[1] <= y && y <= region.at[1] + region.size[1];
         });
@@ -161,7 +171,6 @@ PanelWindow {
             return;
         }
 
-        // Window regions
         const clickedWindow = root.windowRegions.find(region => {
             return region.at[0] <= x && x <= region.at[0] + region.size[0] && region.at[1] <= y && y <= region.at[1] + region.size[1];
         });
@@ -196,8 +205,10 @@ PanelWindow {
             root.preparationDone = !checkRecordingProc.running;
         }
     }
+
     property bool isRecording: root.action === RegionSelection.SnipAction.Record || root.action === RegionSelection.SnipAction.RecordWithSound
     property bool recordingShouldStop: false
+
     Process {
         id: checkRecordingProc
         running: isRecording
@@ -207,6 +218,7 @@ PanelWindow {
             root.recordingShouldStop = (exitCode === 0);
         }
     }
+
     property bool preparationDone: false
     onPreparationDoneChanged: {
         if (!preparationDone) return;
@@ -268,45 +280,47 @@ PanelWindow {
 
     // Execution after selection
     function snip() {
-        // Validity check
         if (root.regionWidth <= 0 || root.regionHeight <= 0) {
             console.warn("[Region Selector] Invalid region size, skipping snip.");
             root.dismiss();
+            return;
         }
 
-        // Clamp region to screen bounds
         root.regionX = Math.max(0, Math.min(root.regionX, root.screen.width - root.regionWidth));
         root.regionY = Math.max(0, Math.min(root.regionY, root.screen.height - root.regionHeight));
         root.regionWidth = Math.max(0, Math.min(root.regionWidth, root.screen.width - root.regionX));
         root.regionHeight = Math.max(0, Math.min(root.regionHeight, root.screen.height - root.regionY));
 
-        // Adjust action
         if (root.action === RegionSelection.SnipAction.Copy || root.action === RegionSelection.SnipAction.Edit) {
             root.action = root.mouseButton === Qt.RightButton ? RegionSelection.SnipAction.Edit : RegionSelection.SnipAction.Copy;
         }
-        
-        const screenshotDir = Config.options.screenSnip.savePath !== "" ? //
-            Config.options.screenSnip.savePath : "";
+
+        // Jalur aman penyimpanan jika config savePath kosong
+        const fallbackPath = `${Directories.picturesDir}/Screenshots`;
+        const screenshotDir = (Config.options.screenSnip.savePath && Config.options.screenSnip.savePath !== "") 
+            ? Config.options.screenSnip.savePath 
+            : fallbackPath;
+
         var screenshotAction = root.getScreenshotAction();
         const command = ScreenshotAction.getCommand(
-            root.regionX * root.monitorScale, //
-            root.regionY * root.monitorScale, //
-            root.regionWidth * root.monitorScale,// 
-            root.regionHeight * root.monitorScale, //
-            root.screenshotPath, //
-            screenshotAction, //
+            root.regionX * root.monitorScale,
+            root.regionY * root.monitorScale,
+            root.regionWidth * root.monitorScale,
+            root.regionHeight * root.monitorScale,
+            root.screenshotPath,
+            screenshotAction,
             screenshotDir
-        )
+        );
         Quickshell.execDetached(command);
+
         if (root.action == RegionSelection.SnipAction.Record || root.action == RegionSelection.SnipAction.RecordWithSound) {
-            root.phase = RegionSelection.Phase.Post
-            root.selectionMode = RegionSelection.SelectionMode.RectCorners
+            root.phase = RegionSelection.Phase.Post;
+            root.selectionMode = RegionSelection.SelectionMode.RectCorners;
         } else {
             root.dismiss();
         }
     }
 
-    // Only clickable in Selection phase
     mask: Region {
         item: switch(root.phase) {
             case RegionSelection.Phase.Select: return mouseArea;
@@ -314,14 +328,14 @@ PanelWindow {
         }
     }
 
-    ScreencopyView { // For freezing
+    ScreencopyView {
         anchors.fill: parent
         live: false
         captureSource: root.screen
         visible: root.phase === RegionSelection.Phase.Select
 
         focus: root.visible
-        Keys.onPressed: (event) => { // Esc to close
+        Keys.onPressed: (event) => {
             if (event.key === Qt.Key_Escape) {
                 Qt.callLater(root.dismiss);
             }
@@ -335,7 +349,6 @@ PanelWindow {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
 
-        // Controls
         onPressed: (mouse) => {
             root.dragStartX = mouse.x;
             root.dragStartY = mouse.y;
@@ -344,15 +357,13 @@ PanelWindow {
             root.dragging = true;
             root.mouseButton = mouse.button;
         }
+
         onReleased: (mouse) => {
-            // Detect if it was a click -> Try to select targeted region
             if (root.draggingX === root.dragStartX && root.draggingY === root.dragStartY) {
                 if (root.targetedRegionValid()) {
                     root.setRegionToTargeted();
                 }
-            }
-            // Circle dragging?
-            else if (root.selectionMode === RegionSelection.SelectionMode.Circle) {
+            } else if (root.selectionMode === RegionSelection.SelectionMode.Circle) {
                 const padding = Config.options.regionSelector.circle.padding + Config.options.regionSelector.circle.strokeWidth / 2;
                 const dragPoints = (root.points.length > 0) ? root.points : [{ x: mouseArea.mouseX, y: mouseArea.mouseY }];
                 const maxX = Math.max(...dragPoints.map(p => p.x));
@@ -366,6 +377,7 @@ PanelWindow {
             }
             root.snip();
         }
+
         onPositionChanged: (mouse) => {
             root.updateTargetedRegion(mouse.x, mouse.y);
             if (!root.dragging) return;
@@ -375,7 +387,7 @@ PanelWindow {
             root.dragDiffY = mouse.y - root.dragStartY;
             root.points.push({ x: mouse.x, y: mouse.y });
         }
-        
+
         Loader {
             z: 2
             anchors.fill: parent
@@ -404,7 +416,6 @@ PanelWindow {
             }
         }
 
-        // The thing to the bottom-right with an icon
         CursorGuide {
             z: 9999
             visible: root.phase === RegionSelection.Phase.Select
@@ -414,7 +425,6 @@ PanelWindow {
             selectionMode: root.selectionMode
         }
 
-        // Window regions
         Repeater {
             model: ScriptModel {
                 values: {
@@ -430,10 +440,10 @@ PanelWindow {
                 required property var modelData
                 clientDimensions: modelData
                 showIcon: true
-                targeted: !root.draggedAway && //
-                    (root.targetedRegionX === modelData.at[0]  //
-                    && root.targetedRegionY === modelData.at[1] //
-                    && root.targetedRegionWidth === modelData.size[0] //
+                targeted: !root.draggedAway && 
+                    (root.targetedRegionX === modelData.at[0] 
+                    && root.targetedRegionY === modelData.at[1] 
+                    && root.targetedRegionWidth === modelData.size[0] 
                     && root.targetedRegionHeight === modelData.size[1])
 
                 opacity: root.draggedAway ? 0 : root.targetRegionOpacity
@@ -444,7 +454,6 @@ PanelWindow {
             }
         }
 
-        // Layer regions
         Repeater {
             model: ScriptModel {
                 values: {
@@ -459,10 +468,10 @@ PanelWindow {
                 z: 3
                 required property var modelData
                 clientDimensions: modelData
-                targeted: !root.draggedAway &&
+                targeted: !root.draggedAway && 
                     (root.targetedRegionX === modelData.at[0] 
-                    && root.targetedRegionY === modelData.at[1]
-                    && root.targetedRegionWidth === modelData.size[0]
+                    && root.targetedRegionY === modelData.at[1] 
+                    && root.targetedRegionWidth === modelData.size[0] 
                     && root.targetedRegionHeight === modelData.size[1])
 
                 opacity: root.draggedAway ? 0 : root.targetRegionOpacity
@@ -473,7 +482,6 @@ PanelWindow {
             }
         }
 
-        // Content regions
         Repeater {
             model: ScriptModel {
                 values: {
@@ -488,10 +496,10 @@ PanelWindow {
                 z: 4
                 required property var modelData
                 clientDimensions: modelData
-                targeted: !root.draggedAway &&
+                targeted: !root.draggedAway && 
                     (root.targetedRegionX === modelData.at[0] 
-                    && root.targetedRegionY === modelData.at[1]
-                    && root.targetedRegionWidth === modelData.size[0]
+                    && root.targetedRegionY === modelData.at[1] 
+                    && root.targetedRegionWidth === modelData.size[0] 
                     && root.targetedRegionHeight === modelData.size[1])
 
                 opacity: root.draggedAway ? 0 : root.contentRegionOpacity
@@ -501,7 +509,6 @@ PanelWindow {
             }
         }
 
-        // Controls
         Row {
             id: regionSelectionControls
             z: 10
@@ -512,6 +519,7 @@ PanelWindow {
                 bottomMargin: -height
             }
             opacity: 0
+
             Connections {
                 target: root
                 function onVisibleChanged() {
@@ -520,6 +528,7 @@ PanelWindow {
                     regionSelectionControls.opacity = 1;
                 }
             }
+
             Behavior on opacity {
                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
             }
@@ -537,6 +546,7 @@ PanelWindow {
                 }
                 onDismiss: root.dismiss();
             }
+
             ToolbarPairedFab {
                 anchors.verticalCenter: parent.verticalCenter
                 iconText: "close"
@@ -546,6 +556,5 @@ PanelWindow {
                 }
             }
         }
-        
     }
 }

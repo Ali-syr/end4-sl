@@ -19,21 +19,21 @@ Singleton {
         const combined = desktop + " " + session;
 
         if (combined.includes("hyprland")) return "hyprland";
-        if (combined.includes("niri")) return "niri";
+        // if (combined.includes("niri")) return "niri";
         if (combined.includes("sway")) return "sway";
         if (combined.includes("mango")) return "mango";
         return "unknown";
     }
 
     Component { id: hyprlandComp; HyprlandBackend {} }
-    Component { id: niriComp; NiriBackend {} }
+    // Component { id: niriComp; NiriBackend {} }
     // Component { id: swayComp; SwayBackend {} }
     // Component { id: mangoComp; MangoBackend {} }
 
     Component.onCompleted: {
         switch (root.compositor) {
         case "hyprland": backend = hyprlandComp.createObject(root); break;
-        case "niri":     backend = niriComp.createObject(root); break;
+        // case "niri":     backend = niriComp.createObject(root); break;
         // case "sway":  backend = swayComp.createObject(root); break;
         // case "mango": backend = mangoComp.createObject(root); break;
         default:
