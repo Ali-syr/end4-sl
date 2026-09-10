@@ -95,11 +95,10 @@ Item {
             }
         }
 
-/*        Component {
+        /*Component {
             id: aiChat
             AiChat {}
-        } 
-*/
+        }*/
         Component {
             id: translator
             Translator {}

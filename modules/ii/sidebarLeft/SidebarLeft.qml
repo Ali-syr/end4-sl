@@ -137,7 +137,7 @@ Scope { // Scope
                 bottom: true
             }
 
-            margins {
+             margins {
                 top: {
                     if (Config.options.bar.bottom) return 0;
                     if (Config?.options.bar.autoHide.enable) return 0;
@@ -149,7 +149,7 @@ Scope { // Scope
                     case 3: return -Appearance.sizes.barHeight - Appearance.sizes.hyprlandGapsOut;
                     default: return 0;
                     }
-                }
+                } 
                 bottom: {
                     if (!Config.options.bar.bottom) return 0;
                     if (Config?.options.bar.autoHide.enable) return 0;
@@ -305,7 +305,7 @@ Scope { // Scope
         }
     }
 
-    CompositorGlobalShortcut {
+     CompositorGlobalShortcut {
         name: "sidebarLeftToggle"
         description: "Toggles left sidebar on press"
 
