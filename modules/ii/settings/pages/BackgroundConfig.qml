@@ -232,6 +232,7 @@ ContentPage {
                     checked: Config.options.background.showBlur
                     onCheckedChanged: {
                         Config.options.background.showBlur = checked;
+                        Config.options.lock.blur.enable = checked;
                     }
                 }
 
@@ -320,8 +321,8 @@ ContentPage {
                         buttonIcon: "check"
                         text: Translation.tr("Enable")
                         checked: Config.options.background.centeredWallpaper
-                        onClicked: {
-                            Config.options.background.centeredWallpaper = !Config.options.background.centeredWallpaper;
+                        onCheckedChanged: {
+                            Config.options.background.centeredWallpaper = checked;
                         }
                     }
                     ConfigSwitch {

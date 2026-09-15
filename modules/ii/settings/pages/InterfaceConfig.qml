@@ -798,7 +798,10 @@ ContentPage {
                         buttonIcon: "blur_on"
                         text: Translation.tr("Enable blur")
                         checked: Config.options.lock.blur.enable
-                        onCheckedChanged: { Config.options.lock.blur.enable = checked }
+                        onCheckedChanged: {
+                            Config.options.lock.blur.enable = checked;
+                            Config.options.background.showBlur = checked;
+                        }
                     }
                     ConfigSpinBox {
                         icon: "deblur"

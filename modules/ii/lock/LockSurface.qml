@@ -113,6 +113,30 @@ MouseArea {
     //     }
     // }
 
+    readonly property string effectiveWallpaperPath: Config.options.background.lockWall !== ""
+        ? Config.options.background.lockWall
+        : Config.options.background.wallpaperPath
+    readonly property bool wallpaperIsVideo: effectiveWallpaperPath.endsWith(".mp4")
+        || effectiveWallpaperPath.endsWith(".webm")
+        || effectiveWallpaperPath.endsWith(".mkv")
+        || effectiveWallpaperPath.endsWith(".avi")
+        || effectiveWallpaperPath.endsWith(".mov")
+    readonly property string wallpaperPath: wallpaperIsVideo
+        ? Config.options.background.thumbnailPath
+        : effectiveWallpaperPath
+
+    readonly property real splitFraction: {
+        switch (Config.options.background.splitRatio) {
+            case "25": return 0.28
+            case "50": return 0.54
+            default:   return 1.0
+        }
+    }
+    readonly property bool blurFullScreen: splitFraction >= 1.0
+    readonly property bool blurActive: Config.options.background.showBlur
+        && !wallpaperIsVideo
+        && !centeredWallpaper.centeredWallpaperEnabled
+
     Item {
         id: bgContainer
         anchors.fill: parent
@@ -121,17 +145,71 @@ MouseArea {
         Image {
             id: lockBgSource
             anchors.fill: parent
-            source: Config.options.background.lockWall !== "" ? Config.options.background.lockWall : Config.options.background.wallpaperPath
+            source: root.wallpaperPath
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
+            visible: !centeredWallpaper.centeredHidesFullWallpaper
+            opacity: centeredWallpaper.centeredFullWallpaperOpacity()
         }
-        FastBlur {
-            id: lockBlur
+
+        Loader {
+            id: lockBlurLoader
             anchors.fill: parent
-            source: lockBgSource
-            radius: (Config.options.lock.blur.enable ?? true) ? (Config.options.lock.blur.radius ?? 64) : 0
-            visible: (Config.options.lock.blur.enable ?? true) && radius > 0
+            active: root.blurActive
+            visible: active
+
+            sourceComponent: Item {
+                id: blurRoot
+                anchors.fill: parent
+
+                readonly property real fadeWidth: 140
+                readonly property real blurRadius: Config.options.lock.blur.radius ?? 48
+                readonly property bool alignRight: Config.options.background.splitSide === "right"
+                property real coreWidth: root.blurFullScreen ? blurRoot.width : blurRoot.width * root.splitFraction
+
+                Behavior on coreWidth {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
+
+                FastBlur {
+                    id: blurLayer
+                    anchors.fill: parent
+                    source: lockBgSource
+                    radius: blurRoot.blurRadius
+
+                    layer.enabled: !root.blurFullScreen
+                    layer.effect: OpacityMask {
+                        maskSource: Rectangle {
+                            width: blurLayer.width
+                            height: blurLayer.height
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop {
+                                    position: blurRoot.alignRight
+                                        ? 1 - (blurRoot.coreWidth / blurRoot.width)
+                                        : Math.max(0, (blurRoot.coreWidth - blurRoot.fadeWidth) / blurRoot.width)
+                                    color: blurRoot.alignRight ? "transparent" : "white"
+                                }
+                                GradientStop {
+                                    position: blurRoot.alignRight
+                                        ? Math.min(1, 1 - (blurRoot.coreWidth - blurRoot.fadeWidth) / blurRoot.width)
+                                        : Math.min(1, blurRoot.coreWidth / blurRoot.width)
+                                    color: blurRoot.alignRight ? "white" : "transparent"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        CenteredWallpaper {
+            id: centeredWallpaper
+            anchors.fill: parent
+            screen: root.screen
+            wallpaperPath: root.wallpaperPath
+            wallpaperIsVideo: root.wallpaperIsVideo
         }
     }
 
@@ -157,7 +235,7 @@ MouseArea {
         width: Math.max(1, Config.options.background.centeredWallpaperSize)
         height: width
         anchors.centerIn: parent
-        visible: Config.options.background.centeredWallpaper
+        visible: centeredWallpaper.centeredWallpaperEnabled && (centeredWallpaper.centeredProgress < 1 || centeredWallpaper.centeredAnimating)
         onClicked: {
             root.forceFieldFocus()
             GlobalStates.centeredWallpaperThumpRequested()

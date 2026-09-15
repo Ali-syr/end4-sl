@@ -40,13 +40,16 @@ Item {
         }
     }
 
+    readonly property real screenWidth: root.screen?.width ?? root.width ?? 1920
+    readonly property real screenHeight: root.screen?.height ?? root.height ?? 1080
+
     // Size the shape (with the wallpaper inside) must reach so its masked
     // area fully covers the screen; the shape then leaves the screen.
     // The shape item is rendered at this fixed size and only transformed
     // (scaled) during the transition, so the 2D canvas + mask are painted
     // once instead of re-rasterized every frame at a changing size.
     property real centeredShapeMax: Math.max(1, Math.ceil(
-        Math.hypot(root.screen.width / 2, root.screen.height / 2)
+        Math.hypot(root.screenWidth / 2, root.screenHeight / 2)
         / CF.ShapeUtils.centeredShapeMinBoundaryRadius(root.centeredWallpaperShape) * 1.02))
     // Pixel size the shape item/layer is rendered at. Kept at roughly the
     // screen diagonal instead of centeredShapeMax (which can be 2.5x that)
@@ -54,7 +57,7 @@ Item {
     // the scale below compensates, so the silhouette and the picture inside
     // stay identical (edges soften only while the shape outgrows the layer).
     property real centeredShapeRenderSize: Math.max(1, Math.ceil(
-        Math.hypot(root.screen.width, root.screen.height)))
+        Math.hypot(root.screenWidth, root.screenHeight)))
 
     // 0 = locked (wallpaper rests centered inside the shape), 1 = unlocked
     // (wallpaper fills the screen). This is the only animated driver: the
@@ -128,7 +131,7 @@ Item {
     }
     function centeredImageScale() {
         if (!root.centeredWallpaperEnabled) return 1
-        const minDim = Math.min(root.screen.width, root.screen.height)
+        const minDim = Math.min(root.screenWidth, root.screenHeight)
         const size = root.centeredShapeSize()
         const overscan = size >= minDim ? 1
             : 1.08 - 0.08 * (size - root.centeredWallpaperSize) / (minDim - root.centeredWallpaperSize)
