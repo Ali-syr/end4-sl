@@ -16,14 +16,14 @@ ContentPage {
 
     function runSystemUpdate() {
         Quickshell.execDetached([
-            "kitty", "--hold",
-            "fish", "-i", "-l", "-c",
+            "ghostty", "--hold",
+            "zsh", "-i", "-l", "-c",
             "yay -Syu --combinedupgrade=false"
         ])
         Qt.callLater(() => GlobalStates.settingsOpen = false)
     }
 
-    /* function runUpdateDots() {
+    function runUpdateDots() {
         const updateScript = `
             set -e
             DIR="$HOME/.config/quickshell"
@@ -49,7 +49,7 @@ ContentPage {
 
         Quickshell.execDetached(["kitty", "--hold", "bash", "-c", updateScript])
         Qt.callLater(() => GlobalStates.settingsOpen = false)
-    } */
+    }
 
     Rectangle {
         Layout.fillWidth: true
@@ -133,10 +133,8 @@ ContentPage {
                     }
                 }
             }
-            /* RowLayout {
-                anchors.bottom: parent.bottom
-                anchors.right: parent.right
-                anchors.margins: 0
+            RowLayout {
+                Layout.alignment: Qt.AlignBottom | Qt.AlignRight
                 spacing: 8
                 RippleButton {
                     buttonText: Translation.tr("Update Dots")
@@ -152,7 +150,7 @@ ContentPage {
                         rightPadding: 10
                     }
                 }
-            } */
+            }
         }
     }
 

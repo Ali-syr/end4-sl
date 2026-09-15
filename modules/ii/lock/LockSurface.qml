@@ -10,12 +10,15 @@ import qs.modules.common.widgets
 import qs.modules.common.functions
 import qs.modules.common.panels.lock
 import qs.modules.ii.bar as Bar
+import qs.modules.ii.background
+import qs.modules.common.widgets.widgetCanvas
 import Quickshell
 import Quickshell.Services.SystemTray
 
 MouseArea {
     id: root
     required property LockContext context
+    readonly property var screen: root.QsWindow?.window?.screen ?? parent?.screen ?? (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
     property bool active: false
     property bool showInputField: active || context.currentText.length > 0
     readonly property bool requirePasswordToPower: Config.options.lock.security.requirePasswordToPower
@@ -110,28 +113,68 @@ MouseArea {
     //     }
     // }
 
-    Loader {
+    Item {
+        id: bgContainer
+        anchors.fill: parent
+        z: -2
+
+        Image {
+            id: lockBgSource
+            anchors.fill: parent
+            source: Config.options.background.lockWall !== "" ? Config.options.background.lockWall : Config.options.background.wallpaperPath
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: true
+        }
+        FastBlur {
+            id: lockBlur
+            anchors.fill: parent
+            source: lockBgSource
+            radius: (Config.options.lock.blur.enable ?? true) ? (Config.options.lock.blur.radius ?? 64) : 0
+            visible: (Config.options.lock.blur.enable ?? true) && radius > 0
+        }
+    }
+
+    WidgetCanvas {
+        id: lockWidgetCanvas
         anchors.fill: parent
         z: -1
-        active: WM.compositor === "niri"
+        enabled: false
 
-        sourceComponent: Item {
-            anchors.fill: parent
+        WidgetsLoader {
+            screen: root.screen
+            wallpaperItem: lockBgSource
+            wallpaperSafetyTriggered: false
+        }
+    }
 
-            Image {
-                id: lockBgSource
-                anchors.fill: parent
-                source: Config.options.background.wallpaperPath
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                cache: true
-                visible: false
-            }
-            FastBlur {
-                anchors.fill: parent
-                source: lockBgSource
-                radius: 0 // fixme
-            }
+    // Clicking the centered wallpaper (a square around the screen center
+    // matching its locked size) plays the heartbeat thump on the background.
+    // Keeps the password field focused like any other lock-screen press.
+    MouseArea {
+        id: centeredWallpaperThumpArea
+        z: 1
+        width: Math.max(1, Config.options.background.centeredWallpaperSize)
+        height: width
+        anchors.centerIn: parent
+        visible: Config.options.background.centeredWallpaper
+        onClicked: {
+            root.forceFieldFocus()
+            GlobalStates.centeredWallpaperThumpRequested()
+        }
+        // Scroll cycles the centered wallpaper shape (up = next, down = previous),
+        // same cooldown as the desktop so fast scrolling can't skip shapes.
+        onWheel: (wheel) => {
+            if (!Config.options.background.centeredWallpaperShapeCycle) return
+            if (shapeCycleCooldown.running) return
+            root.forceFieldFocus()
+            GlobalStates.cycleCenteredWallpaperShape(wheel.angleDelta.y > 0 ? 1 : -1)
+            shapeCycleCooldown.restart()
+            wheel.accepted = true
+        }
+        Timer {
+            id: shapeCycleCooldown
+            interval: 400
         }
     }
 
